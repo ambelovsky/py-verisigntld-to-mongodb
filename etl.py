@@ -81,11 +81,13 @@ def lines_to_disk(lines):
     for line in lines:
         with open(data_dir + '/' + line[:2] + '.dat', mode='a') as file:
             file.write(line)
+    lines.clear()
 
 def process_line(line):
     """ Checks and extracts domain information from zone file lines. """
-    if not check_line(line):
-        return
+    line = line.decode('ascii')
+    
+    if not check_line(line): return
     domain = extract_domain(line)
     
     # Basic deduplication by storing domains in set
