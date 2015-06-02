@@ -1,4 +1,4 @@
-import tarfile, shutil
+import gzip, shutil
 import io, os, re
 
 import pymongo
@@ -46,7 +46,7 @@ domain_regex = re.compile("[a-zA-Z\d-]{,63}(\.[a-zA-Z\d-]{,63})*")
 # Init Steps
 def remake_directory(dir):
     """ Create directory if it doesn't exist. """
-    if os.path.exists(os.path.dirname(dir)):
+    if os.path.exists(dir):
         shutil.rmtree(dir)
     os.makedirs(dir)
 
@@ -54,6 +54,10 @@ def remake_directory(dir):
 def fetch_file(server, file_config):
     """ Retreives the proper zone file from the FTP server. """
     print("Fetching file: %s" % file_config['zone_file'])
+    
+    # Prevents connecting to Verisign if the file is already in the directory
+    if os.path.exists(file_config['zone_file']): return
+    
     with FTP(server, ftp_user, ftp_pass) as ftp:
         ftp.retrbinary("RETR " + file_config['zone_file'], open(file_config['zone_file'], 'wb').write)
 
@@ -64,18 +68,12 @@ def discard_file(server, file_config):
 # Compressed File Processing
 def process_file(path):
     print("Processing file: %s" % path)
-    with tarfile.open(path, 'r|gz') as tfile:
-        for entry in tfile:
-            # avoid metadata files
-            if '_' in entry.name:
-                continue
-        
-            # stream extracted info
-            file_obj = tfile.extractfile(entry)
-            for line in file_obj:
-                process_line(line)
-                if(len(domains) > 100): lines_to_disk(domains)
-            lines_to_disk(domains)
+    with gzip.open(path, 'r') as gzfile:
+        # stream extracted info
+        for line in gzfile:
+            process_line(line)
+            if(len(domains) > 100): lines_to_disk(domains)
+        lines_to_disk(domains)
 
 # Line Processing
 def lines_to_disk(lines):
