@@ -1,5 +1,5 @@
 import gzip, shutil
-import io, os, re
+import sys, io, os, re
 
 import pymongo
 from pymongo import ASCENDING, DESCENDING
@@ -68,12 +68,20 @@ def discard_file(server, file_config):
 # Compressed File Processing
 def process_file(path):
     print("Processing file: %s" % path)
+    file_size = os.stat(path).st_size
+    bytes_processed = 0
+    
     with gzip.open(path, 'r') as gzfile:
         # stream extracted info
         for line in gzfile:
             process_line(line)
             if(len(domains) > 100): lines_to_disk(domains)
+            
+            bytes_processed += len(line)
+            sys.stdout.write("\r%d%%" % (bytes_processed/file_size*100))
+            sys.stdout.flush()
         lines_to_disk(domains)
+        print("...done.")
 
 # Line Processing
 def lines_to_disk(lines):
