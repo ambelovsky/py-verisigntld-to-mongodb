@@ -12,17 +12,17 @@ from ftplib import FTP
 files = {
     'rz.verisign-grs.com': [
         {
-            'zone_file': 'com.zone.tgz',
+            'zone_file': 'com.zone.gz',
             'zone_extension': 'com'
         },
         {
-            'zone_file': 'net.zone.tgz',
+            'zone_file': 'net.zone.gz',
             'zone_extension': 'net'
         }
     ],
     'rzname.verisign-grs.com': [
         {
-            'zone_file': 'name.zone.tgz',
+            'zone_file': 'name.zone.gz',
             'zone_extension': 'name'
         }
     ]
