@@ -1,4 +1,4 @@
-import gzip, shutil
+import gzip, struct, shutil
 import sys, io, os, re
 
 import pymongo
@@ -68,7 +68,7 @@ def discard_file(server, file_config):
 # Compressed File Processing
 def process_file(path):
     print("Processing file: %s" % path)
-    file_size = os.stat(path).st_size
+    file_size = gzip_file_size(path)
     bytes_processed = 0
     
     with gzip.open(path, 'r') as gzfile:
@@ -82,6 +82,14 @@ def process_file(path):
             sys.stdout.flush()
         lines_to_disk(domains)
         print("...done.")
+
+def gzip_file_size(path):
+    """ Return decompressed filesize of a gzipped file. """
+    fo = open(path, 'rb')
+    fo.seek(-4, 2)
+    r = fo.read()
+    fo.close()
+    return struct.unpack('<I', r)[0]
 
 # Line Processing
 def lines_to_disk(lines):
@@ -116,7 +124,7 @@ def check_line(line):
     return True
 
 def extract_domain(line):
-    """ Extracts the domain name part from a checked zone file line. """
+    """ Extract the domain name part from a checked zone file line. """
     return line.split()[0]
 
 # Stored Line Processing
