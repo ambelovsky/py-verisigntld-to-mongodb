@@ -22,7 +22,7 @@ files = {
     ],
     'rzname.verisign-grs.com': [
         {
-            'zone_file': 'name.zone.gz',
+            'zone_file': 'master.name.zone.gz',
             'zone_extension': 'name'
         }
     ]
@@ -53,10 +53,9 @@ def remake_directory(dir):
 # Retreive File
 def fetch_file(server, file_config):
     """ Retreives the proper zone file from the FTP server. """
+    print("Fetching file: %s" % file_config['zone_file'])
     with FTP(server, ftp_user, ftp_pass) as ftp:
-        ftp.login()
         ftp.retrbinary("RETR " + file_config['zone_file'], open(file_config['zone_file'], 'wb').write)
-        ftp.quit()
 
 def discard_file(server, file_config):
     """ NOT YET IMPLEMENTED """
@@ -64,6 +63,7 @@ def discard_file(server, file_config):
 
 # Compressed File Processing
 def process_file(path):
+    print("Processing file: %s" % path)
     with tarfile.open(path, 'r|gz') as tfile:
         for entry in tfile:
             # avoid metadata files
@@ -114,6 +114,7 @@ def extract_domain(line):
 # Stored Line Processing
 def process_lines_on_disk():
     """ Final dedupe and commit of cached line information. """
+    print("Processing data directory...")
     files = os.listdir(data_dir)
     
     for file in files:
@@ -124,6 +125,7 @@ def process_lines_on_disk():
 
 def commit(domains):
     """ Commit domain names to their destination. """
+    print("Committing domains to database...")
     with pymongo.MongoClient(mongo_conf['host'], mongo_conf['port']) as client:
         db = pymongo.database.Database(client, 'dns')
         collection = db['domains']
@@ -133,6 +135,7 @@ def commit(domains):
 
 # Database configuration
 def db_config():
+    print("Configuring database...")
     with pymongo.MongoClient(mongo_conf['host'], mongo_conf['port']) as client:
         db = pymongo.database.Database(client, 'dns')
         collection = db['domains']
@@ -144,7 +147,6 @@ def db_config():
         )
 
 # Main Script Execution
-remake_directory(data_dir)
 db_config()
 for server in files:
     for file in files[server]:
@@ -152,6 +154,7 @@ for server in files:
         curr_ext = file['zone_extension'].lower()
         
         fetch_file(server, file)
+        remake_directory(data_dir)
         process_file(file['zone_file'])
         discard_file(server, file)
         process_lines_on_disk()
@@ -159,3 +162,5 @@ for server in files:
         bad_start.pop()
         curr_ext = ""
 
+# Cleanup
+remake_directory(data_dir)
