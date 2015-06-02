@@ -36,6 +36,8 @@ mongo_conf = {
     'port': 27017
 }
 
+enable_size_check = False # Provides accurate completion estimates but takes longer to process
+
 # Global vars
 domains = set()
 curr_ext = ""
@@ -68,28 +70,40 @@ def discard_file(server, file_config):
 # Compressed File Processing
 def process_file(path):
     print("Processing file: %s" % path)
-    file_size = gzip_file_size(path)
+    file_size = 0
     bytes_processed = 0
     
+    if enable_size_check:
+        with gzip.open(path, 'r') as gzfile:
+            stdcount = 0
+            for line in gzfile:
+                file_size += len(line)
+                if stdcount > 250000:
+                    sys.stdout.write("\rChecking size: %d MB" % (file_size / 1000000))
+                    sys.stdout.flush()
+                    stdcount = 0
+                stdcount += 1
+            print("...done.")
+    
     with gzip.open(path, 'r') as gzfile:
+        stdcount = 0
         # stream extracted info
         for line in gzfile:
             process_line(line)
             if(len(domains) > 100): lines_to_disk(domains)
-            
             bytes_processed += len(line)
-            sys.stdout.write("\r%d%%" % (bytes_processed/file_size*100))
-            sys.stdout.flush()
+            
+            if stdcount > 250000:
+                if enable_size_check:
+                    sys.stdout.write("\rProcessing: %d%%" % (bytes_processed/file_size*100))
+                    sys.stdout.flush()
+                else:
+                    sys.stdout.write("\rProcessed: %d MB" % (bytes_processed / 1000000))
+                    sys.stdout.flush()
+                stdcount = 0
+            stdcount += 1
         lines_to_disk(domains)
         print("...done.")
-
-def gzip_file_size(path):
-    """ Return decompressed filesize of a gzipped file. """
-    fo = open(path, 'rb')
-    fo.seek(-4, 2)
-    r = fo.read()
-    fo.close()
-    return struct.unpack('<I', r)[0]
 
 # Line Processing
 def lines_to_disk(lines):
@@ -124,7 +138,7 @@ def check_line(line):
     return True
 
 def extract_domain(line):
-    """ Extract the domain name part from a checked zone file line. """
+    """ Extracts the domain name part from a checked zone file line. """
     return line.split()[0]
 
 # Stored Line Processing
