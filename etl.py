@@ -7,33 +7,35 @@ from pymongo import ASCENDING, DESCENDING
 from ftplib import FTP
 
 # Configuration
+ftp_user = ""
+ftp_pass = ""
+
+mongo_conf = {
+    'host': '127.0.0.1',
+    'port': 27017
+}
 
 # ftp servers and files that can be found on each for processing
 files = {
     'rz.verisign-grs.com': [
         {
             'zone_file': 'com.zone.gz',
-            'zone_extension': 'com'
+            'zone_extension': 'com',
+            'zone_type': 1
         },
         {
             'zone_file': 'net.zone.gz',
-            'zone_extension': 'net'
+            'zone_extension': 'net',
+            'zone_type': 1
         }
     ],
     'rzname.verisign-grs.com': [
         {
             'zone_file': 'master.name.zone.gz',
-            'zone_extension': 'name'
+            'zone_extension': 'name',
+            'zone_type': 2 # name files use a different zone file format
         }
     ]
-}
-
-ftp_user = ""
-ftp_pass = ""
-
-mongo_conf = {
-    'host': '127.0.0.1', #'localhost',
-    'port': 27017
 }
 
 enable_size_check = False # Provides accurate completion estimates but takes longer to process
@@ -41,6 +43,7 @@ enable_size_check = False # Provides accurate completion estimates but takes lon
 # Global vars
 domains = set()
 curr_ext = ""
+curr_zone_type = 1
 data_dir = './data'
 bad_start = ['$', ';', ' ', 'NS ']
 domain_regex = re.compile("[a-zA-Z\d-]{,63}(\.[a-zA-Z\d-]{,63})*")
@@ -110,7 +113,7 @@ def lines_to_disk(lines):
     """ Caches lines on disk while processing. """
     for line in lines:
         with open(data_dir + '/' + line[:2] + '.dat', mode='a') as file:
-            file.write(line)
+            file.write(line + "\n")
     lines.clear()
 
 def process_line(line):
@@ -131,15 +134,25 @@ def check_line(line):
     
     # make sure the line matches the format for a domain line
     line_parts = line.split()
-    if type(line_parts) != list or len(line_parts) < 3: return False
-    if line_parts[1] != 'NS': return False
-    if not domain_regex.match(line_parts[2]): return False
+    
+    if type(line_parts) != list: return False
+    if curr_zone_type == 1:
+        # DOMAIN NS ns.domain.ext
+        if len(line_parts) < 3: return False
+        if line_parts[1] != 'NS': return False
+        if not domain_regex.match(line_parts[2]): return False
+    else:
+        # domain.name.	10800	in	ns	ns.domain.ext.
+        if len(line_parts) < 5: return False
+        if line_parts[3] != 'ns': return False
+        if not domain_regex.match(line_parts[4]): return False
     
     return True
 
 def extract_domain(line):
     """ Extracts the domain name part from a checked zone file line. """
-    return line.split()[0]
+    if curr_zone_type == 1: return line.split()[0]
+    else: return line.split()[0].split('.')[0]
 
 # Stored Line Processing
 def process_lines_on_disk():
@@ -182,6 +195,7 @@ for server in files:
     for file in files[server]:
         bad_start.append(file['zone_extension'].upper() + '.')
         curr_ext = file['zone_extension'].lower()
+        curr_zone_type = file['zone_type']
         
         fetch_file(server, file)
         remake_directory(data_dir)
