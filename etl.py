@@ -172,8 +172,7 @@ def commit(domains):
     with pymongo.MongoClient(mongo_conf['host'], mongo_conf['port']) as client:
         db = pymongo.database.Database(client, 'dns')
         collection = db['domains']
-        for domain in domains:
-            collection.insert_many([{'ext': curr_ext, 'name': domain} for domain in domains])
+        collection.insert_many([{'ext': curr_ext, 'name': domain} for domain in domains])
     domains.clear()
 
 # Database configuration
