@@ -138,7 +138,7 @@ def check_line(line):
     if curr_zone_type == 1:
         # DOMAIN NS ns.domain.ext
         if len(line_parts) < 3: return False
-        if line_parts[1] != 'NS': return False
+        if line_parts[1] != 'ns': return False
         if not domain_regex.match(line_parts[2]): return False
     else:
         # domain.name.	10800	in	ns	ns.domain.ext.
@@ -146,7 +146,7 @@ def check_line(line):
         if line_parts[3] != 'ns': return False
         if not domain_regex.match(line_parts[4]): return False
         if len(line_parts[0].split('.')) < 3: return False
-    
+
     return True
 
 def extract_domain(line):
