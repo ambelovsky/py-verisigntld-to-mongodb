@@ -152,7 +152,7 @@ def check_line(line):
 def extract_domain(line):
     """ Extracts the domain name part from a checked zone file line. """
     if curr_zone_type == 1: return line.split()[0]
-    else: return line.split()[0].split('.')[0]
+    else: return line.split()[0].split('.')[-2]
 
 # Stored Line Processing
 def process_lines_on_disk():
