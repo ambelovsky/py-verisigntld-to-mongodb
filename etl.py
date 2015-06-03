@@ -17,6 +17,13 @@ mongo_conf = {
 
 # ftp servers and files that can be found on each for processing
 files = {
+    'rzname.verisign-grs.com': [
+        {
+            'zone_file': 'master.name.zone.gz',
+            'zone_extension': 'name',
+            'zone_type': 2 # name files use a different zone file format
+        }
+    ],
     'rz.verisign-grs.com': [
         {
             'zone_file': 'com.zone.gz',
@@ -27,13 +34,6 @@ files = {
             'zone_file': 'net.zone.gz',
             'zone_extension': 'net',
             'zone_type': 1
-        }
-    ],
-    'rzname.verisign-grs.com': [
-        {
-            'zone_file': 'master.name.zone.gz',
-            'zone_extension': 'name',
-            'zone_type': 2 # name files use a different zone file format
         }
     ]
 }
@@ -51,8 +51,7 @@ domain_regex = re.compile("[a-zA-Z\d-]{,63}(\.[a-zA-Z\d-]{,63})*")
 # Init Steps
 def remake_directory(dir):
     """ Create directory if it doesn't exist. """
-    if os.path.exists(dir):
-        shutil.rmtree(dir)
+    shutil.rmtree(dir)
     os.makedirs(dir)
 
 # Retreive File
@@ -118,9 +117,9 @@ def lines_to_disk(lines):
 
 def process_line(line):
     """ Checks and extracts domain information from zone file lines. """
-    line = line.decode('ascii')
+    line = line.decode('ascii').strip().lower()
     
-    if not check_line(line): return
+    if check_line(line) == False: return
     domain = extract_domain(line)
     
     # Basic deduplication by storing domains in set
@@ -134,7 +133,7 @@ def check_line(line):
     
     # make sure the line matches the format for a domain line
     line_parts = line.split()
-    
+
     if type(line_parts) != list: return False
     if curr_zone_type == 1:
         # DOMAIN NS ns.domain.ext
@@ -146,13 +145,14 @@ def check_line(line):
         if len(line_parts) < 5: return False
         if line_parts[3] != 'ns': return False
         if not domain_regex.match(line_parts[4]): return False
+        if len(line_parts[0].split('.')) < 3: return False
     
     return True
 
 def extract_domain(line):
     """ Extracts the domain name part from a checked zone file line. """
     if curr_zone_type == 1: return line.split()[0]
-    else: return line.split()[0].split('.')[-2]
+    else: return line.split()[0].split('.')[-3]
 
 # Stored Line Processing
 def process_lines_on_disk():
@@ -162,7 +162,7 @@ def process_lines_on_disk():
     
     for file in files:
         with open(data_dir + '/' + file, 'r') as content_file:
-            content = content_file.read()
+            content = content_file.read().strip()
         domains = set(content.split("\n"))
         commit(domains)
 
